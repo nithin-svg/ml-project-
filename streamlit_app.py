@@ -64,6 +64,17 @@ def train_models(df: pd.DataFrame):
     rf_recall = recall_score(y_test, rf_pred)
     rf_f1 = f1_score(y_test, rf_pred)
 
+    if rf_acc >= lr_acc:
+        best_model_name = "Random Forest"
+        best_model = rf
+        best_requires_scaling = False
+        best_accuracy = rf_acc
+    else:
+        best_model_name = "Logistic Regression"
+        best_model = lr
+        best_requires_scaling = True
+        best_accuracy = lr_acc
+
     return {
         "X_columns": X.columns.tolist(),
         "X_template": X,
@@ -81,6 +92,10 @@ def train_models(df: pd.DataFrame):
         "y_test": y_test,
         "rf_pred": rf_pred,
         "lr_pred": lr_pred,
+        "best_model_name": best_model_name,
+        "best_model": best_model,
+        "best_requires_scaling": best_requires_scaling,
+        "best_accuracy": best_accuracy,
     }
 
 
@@ -286,10 +301,9 @@ def main() -> None:
     # Sidebar
     with st.sidebar:
         st.markdown("## Settings")
-        model_name = st.radio(
-            "Select Model:",
-            ["Random Forest", "Logistic Regression"],
-            index=0
+        st.success(
+            f"Using best model: {artifacts['best_model_name']} "
+            f"(Accuracy: {artifacts['best_accuracy']:.2%})"
         )
         
         st.markdown("---")
@@ -311,15 +325,15 @@ def main() -> None:
 
         if predict_btn:
             with st.spinner("Analyzing patient data..."):
-                if model_name == "Random Forest":
-                    pred = artifacts["rf"].predict(input_df)[0]
-                    pred_proba = artifacts["rf"].predict_proba(input_df)[0]
-                    model_used = "Random Forest"
-                else:
+                if artifacts["best_requires_scaling"]:
                     scaled_input = artifacts["scaler"].transform(input_df)
-                    pred = artifacts["lr"].predict(scaled_input)[0]
-                    pred_proba = artifacts["lr"].predict_proba(scaled_input)[0]
-                    model_used = "Logistic Regression"
+                    pred = artifacts["best_model"].predict(scaled_input)[0]
+                    pred_proba = artifacts["best_model"].predict_proba(scaled_input)[0]
+                else:
+                    pred = artifacts["best_model"].predict(input_df)[0]
+                    pred_proba = artifacts["best_model"].predict_proba(input_df)[0]
+
+                model_used = artifacts["best_model_name"]
 
                 # Display results
                 st.markdown("---")
